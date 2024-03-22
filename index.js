@@ -5,7 +5,7 @@ var context = canvas.getContext('2d')
 // define circle configurations like colour,radius,border
 var circleRadius = 30
 var circleBorderWidth = 1;
-var circleColors = ['yellow', 'powderblue', 'red', 'green']
+var circleColors = ['yellow', 'powderblue', 'red', 'lightgreen']
 
 // cicle initial position
 var circleX = 70;
@@ -13,15 +13,16 @@ var initialY = 50;
 var circleSpacing = 70;
 
 var arrowWidth = 10
+var arrowSpeed = 5
+var isArrowMoving = false;
 
 // Arrays to store circle and arrow positions
 var circlePositions = [];
 var arrowPositions = [];
 
-function draw(){
-    // Clear canvas
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    // Adjust circle to left side of canvas
+var clickedCircle = -1
+
+function drawCircles(){
     for (let i = 0; i < circleColors.length; i++) {
         // Draw cicles
         context.beginPath();
@@ -33,17 +34,26 @@ function draw(){
         context.lineWidth = circleBorderWidth; // Border width
         context.stroke(); // Draw circle border
         context.closePath();
-        
-        var circleY = initialY + (circleRadius * 2 + circleSpacing) * i;
-        var arrowEndX = canvas.width - circleRadius - 100
-        var arrowEndY = circleY
-        var arrowStartX = canvas.width - 50
-        var arrowStartY = circleY
+    }
+}
 
-        circlePositions.push({x:circleX,y:circleY})
-        arrowPositions.push({x:arrowStartX,y:arrowStartY})
-        
-        drawArrow(arrowStartX,arrowStartY,arrowEndX,arrowEndY)
+function initialisation(){
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < circleColors.length; i++) {
+        var circleY = initialY + (circleRadius * 2 + circleSpacing) * i;
+        var arrowStartX = canvas.width - 50;
+        var arrowStartY = circleY;
+        var arrowEndX = canvas.width - circleRadius - 100
+
+        circlePositions.push({ x: circleX, y: circleY });
+        arrowPositions.push({ x: arrowStartX, y: arrowStartY ,endX:arrowEndX });
+    }
+}
+initialisation()
+
+function drawArrows(){
+    for (let i = 0; i < arrowPositions.length; i++) {
+        drawArrow(arrowPositions[i].x, arrowPositions[i].y, arrowPositions[i].endX, arrowPositions[i].y);
     }
 }
 
@@ -87,5 +97,94 @@ function drawArrow(fromx, fromy, tox, toy){
     context.fill();
 }
 
+function draw(){
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    drawCircles();
+    drawArrows();
+}
+
+
+function animateArrow(clickedCircleIndex) {
+    isArrowMoving = true;
+    var arrowIndex = clickedCircleIndex;
+    var targetCircleX = circleX;
+    var targetCircleY = initialY + (circleRadius * 2 + circleSpacing) * clickedCircleIndex;
+
+    var arrow = arrowPositions[arrowIndex];
+    var dx = (targetCircleX + circleRadius) - arrow.x;
+    var dy = targetCircleY - arrow.y;
+    var distance = Math.sqrt(dx * dx + dy * dy);
+
+    var velocityX = (dx / distance) * arrowSpeed;
+    var velocityY = (dy / distance) * arrowSpeed;
+
+    var interval = setInterval(function () {
+        // since arrow length is 100 so stop the moving arrow after touching circle boundary
+        if (distance < 100) {
+            clearInterval(interval);
+            isArrowMoving = false;
+            // Change circle color immediately
+            circleColors[clickedCircleIndex] = getRandomColor(); // Change to desired color
+        }
+        console.log(distance)
+        // Update arrow position
+        arrow.x += velocityX;
+        arrow.y += velocityY;
+        distance -= arrowSpeed;
+        var circleBoundary = circleRadius + targetCircleX
+        arrowPositions[arrowIndex].endX = distance >  circleBoundary ? distance : circleBoundary
+        // Redraw canvas
+        draw();
+    }, 20);
+}
+
+
+function reset() {
+    if(!isArrowMoving){
+        circleColors = ['yellow', 'powderblue', 'red', 'lightgreen'];
+        arrowPositions.forEach(function (arrow, index) {
+            arrow.x = canvas.width - 50;
+            arrow.endX = canvas.width - circleRadius - 100;
+        });
+        isArrowMoving = false;
+        draw();
+    }
+}
+
+canvas.addEventListener('click', function (event) {
+    if (!isArrowMoving) {
+        var rect = canvas.getBoundingClientRect();
+        var mouseX = event.clientX - rect.left;
+        var mouseY = event.clientY - rect.top;
+
+        for (var i = 0; i < circlePositions.length; i++) {
+            var circle = circlePositions[i];
+            if (Math.sqrt((mouseX - circle.x) ** 2 + (mouseY - circle.y) ** 2) <= circleRadius) {
+                // if (clickedCircle !== i) {
+                    animateArrow(i);
+                    // clickedCircle = i;
+                // }
+                break;
+            }
+        }
+    }
+});
+
+document.getElementById('reset-button').addEventListener('click', function () {
+    console.log("clicked reset button")
+    reset();
+});
+
 
 draw()
+
+
+
+function getRandomColor() {
+    var letters = '0123456789ABCDEF';
+    var color = '#';
+    for (var i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
